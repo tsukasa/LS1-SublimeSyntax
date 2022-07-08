@@ -1,0 +1,614 @@
+%YAML 1.2
+---
+# http://www.sublimetext.com/docs/3/syntax.html
+name: LavishScript
+file_extensions:
+  - iss
+scope: source.ls1
+contexts:
+  main:
+    - include: comment
+    - include: preprocessor
+    - include: objectdef-declaration
+    - include: function-declaration
+    - include: atom-declaration
+    - include: variable-declaration
+  comment:
+    - match: /\*(?!/)
+      push:
+        - meta_scope: comment.block.documentation.ls1
+        - match: \*/
+          pop: true
+    - match: ^(\s+)?(?=;)
+      captures:
+        0: punctuation.definition.comment.ls1
+      push:
+        - meta_scope: comment.line.double-slash.ls1
+        - match: (?=$)
+          pop: true
+  atom-declaration:
+    - match: (?=^\s*\batom\b)
+      push:
+        - meta_scope: meta.atom.ls1
+        - match: '(?<=\})'
+          pop: true
+        - match: |-
+            (?x)
+            ^\s*\b(atom)\b(\(global\)|\(globalkeep\)|\(script\)|\(object\))?\s+
+            (@?[_[:alpha:]][_[:alnum:]]*)\s*
+          captures:
+            1: keyword.other.atom.ls1
+            2: keyword.control.atomscope.ls1
+            3: entity.name.function.ls1
+          push:
+            - match: '(?=\{)'
+              pop: true
+            - include: comment
+            - include: parenthesized-parameter-list
+        - match: '\{'
+          captures:
+            0: punctuation.curlybrace.open.ls1
+          push:
+            - meta_scope: meta.atom.block.ls1
+            - match: '\}'
+              captures:
+                0: punctuation.curlybrace.close.ls1
+              pop: true
+            - include: statement
+  base-types:
+    - match: \binherits\b
+      captures:
+        0: keyword.other.inherits.ls1
+      push:
+        - match: '(?=\{)'
+          pop: true
+        - include: type
+  block:
+    - match: '(\{)'
+      captures:
+        0: punctuation.curlybrace.open.ls1
+      push:
+        - meta_scope: meta.block.ls1
+        - match: '(\})'
+          captures:
+            0: punctuation.curlybrace.close.ls1
+          pop: true
+        - include: statement
+  break-or-continue-statement:
+    - match: ^\s*(break)\s*
+      captures:
+        0: keyword.control.break.ls1
+    - match: ^\s*(continue)\s*
+      captures:
+        0: keyword.control.continue.ls1
+  case-statement:
+    - match: (?=^\s*\bcase\b)
+      push:
+        - match: $
+          pop: true
+        - match: ^\s*\b(case)\b\s+(.+)\s+
+          scope: meta.case.ls1
+          captures:
+            1: keyword.control.case.ls1
+            2: meta.case.expression.ls1
+  command:
+    - match: '^[\s]*\b([^\.\[\{\}\:"\s]*)'
+      captures:
+        1: keyword.other.command.ls1
+      push:
+        - match: $
+          pop: true
+        - include: expression
+  command-parameters:
+    - include: datasequence
+    - include: string
+    - include: number
+    - include: comment
+  datasequence:
+    - match: '(\$\{)'
+      captures:
+        0: punctuation.definition.template-expression.begin.ls1
+      push:
+        - meta_scope: meta.datasequence.ls1
+        - match: '(\})'
+          captures:
+            0: punctuation.definition.template-expression.end.ls1
+          pop: true
+        - include: datasequence-inner
+        - include: string
+  datasequence-cast:
+    - match: (\()
+      captures:
+        0: punctuation.parenthesis.open.ls1
+      push:
+        - meta_scope: meta.datasequence-cast.ls1
+        - match: (\))
+          captures:
+            0: punctuation.parenthesis.close.ls1
+          pop: true
+        - include: comment
+        - include: type
+  datasequence-index:
+    - match: '(\[)'
+      captures:
+        0: punctuation.bracket.open.ls1
+      push:
+        - meta_scope: meta.datasequence-index.ls1
+        - match: '(\])'
+          captures:
+            0: punctuation.bracket.close.ls1
+          pop: true
+        - include: comment
+        - include: expression
+        - include: punctuation-comma
+  datasequence-inner:
+    - include: datasequence-toplevelobject
+    - include: datasequence-member
+    - include: datasequence-index
+    - include: datasequence-method
+    - include: datasequence-cast
+    - include: datasequence
+    - match: '(\})'
+      scope: punctuation.definition.template-expression.end.ls1
+  datasequence-member:
+    - match: (\.)
+      captures:
+        0: punctuation.accessor.ls1
+      push:
+        - meta_scope: meta.datasequence-member.ls1
+        - meta_content_scope: meta.datasequence-member.content.ls1
+        - match: '(?=$|[:\[\.\}\$\(])'
+          pop: true
+        - match: '[^:\[\.\}\$\(]+'
+          scope: entity.name.function.ls1
+  datasequence-method:
+    - match: (?<=\:)
+      captures:
+        0: punctuation.accessor.ls1
+      push:
+        - meta_scope: meta.datasequence-method.ls1
+        - meta_content_scope: meta.datasequence-method.content.ls1
+        - match: '(?=$|[:\[\.\}\$\(])'
+          pop: true
+        - match: '[^:\[\.\}\$\(]+'
+          scope: entity.name.function.ls1
+  datasequence-toplevelobject:
+    - match: '(?<=\$\{)'
+      push:
+        - meta_scope: meta.datasequence-toplevelobject.ls1
+        - match: '(?=$|[:\[\.\}\)\$\(])'
+          pop: true
+        - match: '([^:\[\.\}\$\(]+)'
+          scope: entity.name.variable.ls1
+  datasequenceinner-toplevelobject:
+    - match: (?=^\s*\S)
+      push:
+        - meta_scope: meta.datasequenceinner-toplevelobject.ls1
+        - match: '(?=$|[:\[\.\}\(\$])'
+          pop: true
+        - match: '([^:\[\.\}\(\$]+)'
+          scope: entity.name.variable.ls1
+  do-statement:
+    - match: ^\s*(do)\s*
+      captures:
+        0: keyword.control.do.ls1
+  else-statement:
+    - match: ^\s*(else)\s*
+      captures:
+        0: keyword.control.else.ls1
+  elseif-statement:
+    - match: (?=^\s*\belseif\b)
+      push:
+        - match: $
+          pop: true
+        - match: ^\s*\b(elseif)\b\s+(.+)\s+
+          scope: meta.elseif.ls1
+          captures:
+            1: keyword.control.elseif.ls1
+            2: meta.elseif.expression.ls1
+  escape:
+    - match: \\.
+      scope: constant.character.escape.ls1
+  expression:
+    - include: string
+    - include: escape
+    - include: comment
+    - include: datasequence
+    - include: number
+    - match: \b(TRUE)\b
+      scope: constant.language.true.ls1
+    - match: \b(FALSE)\b
+      scope: constant.language.false.ls1
+    - include: unquoted-text
+    - include: preprocessor-shrinkwrap
+    - include: preprocessor-shrinkwrap2
+  for-statement:
+    - match: (?=^\s*\bfor\b)
+      push:
+        - match: $
+          pop: true
+        - match: ^\s*\b(for)\b\s+(.+)\s+
+          scope: meta.for.ls1
+          captures:
+            1: keyword.control.for.ls1
+            2: meta.for.expression.ls1
+  function-declaration:
+    - match: (?=^\s*\bfunction\b)
+      push:
+        - meta_scope: meta.function.ls1
+        - match: '(?<=\})'
+          pop: true
+        - match: |-
+            (?x)
+            ^\s*\b(function)\b\s+
+            (@?[_[:alpha:]][_[:alnum:]]*)\s*
+          captures:
+            1: keyword.other.function.ls1
+            2: entity.name.function.ls1
+          push:
+            - match: '(?=\{)'
+              pop: true
+            - include: comment
+            - include: parenthesized-parameter-list
+        - match: '\{'
+          captures:
+            0: punctuation.curlybrace.open.ls1
+          push:
+            - meta_scope: meta.function.block.ls1
+            - match: '\}'
+              captures:
+                0: punctuation.curlybrace.close.ls1
+              pop: true
+            - include: statement
+  if-statement:
+    - match: (?=^\s*\bif\b)
+      push:
+        - match: $
+          pop: true
+        - match: ^\s*\b(if)\b\s+(.+)\s+
+          scope: meta.if.ls1
+          captures:
+            1: keyword.control.if.ls1
+            2: meta.if.expression.ls1
+  keyword:
+    - match: \b(variable|if|else|elseif|do|while|for|return|inherits|method|member)\b
+      scope: keyword.control.ls1
+    - match: \b(TRUE)\b
+      scope: constant.language.true.ls1
+    - match: \b(FALSE)\b
+      scope: constant.language.false.ls1
+  line_continuation_character:
+    - match: \\\n
+      scope: constant.character.escape.line-continuation.cpp
+  member-declaration:
+    - match: (?=^\s*\bmember\b)
+      push:
+        - meta_scope: meta.member.ls1
+        - match: '(?<=\})'
+          pop: true
+        - match: |-
+            (?x)
+            ^\s*\b(member((\:)(@?[_[:alpha:]][_[:alnum:]]*))?)\b\s+
+            (@?[_[:alpha:]][_[:alnum:]]*)\s*
+          captures:
+            1: keyword.other.member.ls1
+            2: punctuation.separator.colon.ls1
+            5: entity.name.function.ls1
+          push:
+            - match: '(?=\{)'
+              pop: true
+            - include: comment
+            - include: parenthesized-parameter-list
+        - match: '\{'
+          captures:
+            0: punctuation.curlybrace.open.ls1
+          push:
+            - meta_scope: meta.member.block.ls1
+            - match: '\}'
+              captures:
+                0: punctuation.curlybrace.close.ls1
+              pop: true
+            - include: statement
+  method-command:
+    - match: '(^\s*([^\$:]+):)'
+      captures:
+        1: meta.method-command.beginning-1.ls1
+      push:
+        - meta_scope: meta.method-command.ls1
+        - match: $
+          pop: true
+        - include: datasequenceinner-toplevelobject
+        - include: datasequence
+        - include: datasequence-inner
+  method-declaration:
+    - match: (?=^\s*\bmethod\b)
+      push:
+        - meta_scope: meta.method.ls1
+        - match: '(?<=\})'
+          pop: true
+        - match: |-
+            (?x)
+            ^\s*\b(method)\b\s+
+            (@?[_[:alpha:]][_[:alnum:]]*)\s*
+          captures:
+            1: keyword.other.method.ls1
+            2: entity.name.function.ls1
+          push:
+            - match: '(?=\{)'
+              pop: true
+            - include: comment
+            - include: parenthesized-parameter-list
+        - match: '\{'
+          captures:
+            0: punctuation.curlybrace.open.ls1
+          push:
+            - meta_scope: meta.method.block.ls1
+            - match: '\}'
+              captures:
+                0: punctuation.curlybrace.close.ls1
+              pop: true
+            - include: statement
+  number:
+    - match: \d+
+      scope: constant.numeric.ls1
+  objectdef:
+    - match: \b(objectdef)\b
+      scope: keyword.control.ls1
+  objectdef-declaration:
+    - match: (?=^\s*\bobjectdef\b)
+      push:
+        - meta_scope: meta.objectdef.ls1
+        - match: '(?<=\})'
+          captures:
+            0: meta.objectdef.close.ls1
+          pop: true
+        - match: |-
+            (?x)
+            \s*\b(objectdef)\b\s+
+            (@?[_[:alpha:]][_[:alnum:]]*)\s*
+          captures:
+            1: keyword.other.class.ls1
+            2: entity.name.type.class.ls1
+          push:
+            - match: '(?=\{)'
+              pop: true
+            - include: comment
+            - include: base-types
+        - match: '\{'
+          captures:
+            0: punctuation.curlybrace.open.ls1
+          push:
+            - meta_scope: meta.objectdef.block.ls1
+            - match: '\}'
+              captures:
+                0: punctuation.curlybrace.close.ls1
+              pop: true
+            - include: objectdef-members
+        - include: preprocessor
+        - include: comment
+  objectdef-members:
+    - include: preprocessor
+    - include: comment
+    - include: variable-declaration
+    - include: member-declaration
+    - include: method-declaration
+    - include: function-declaration
+  parameter:
+    - match: '\b(@?[_[:alpha:]][_[:alnum:]]*)\s+\b(@?[_[:alpha:]][_[:alnum:]]*)'
+      scope: meta.parameter.ls1
+      captures:
+        2: entity.name.variable.parameter.ls1
+  parenthesized-parameter-list:
+    - match: (\()
+      captures:
+        0: punctuation.parenthesis.open.ls1
+      push:
+        - meta_scope: meta.parenthesized-parameter-list.ls1
+        - match: (\))
+          captures:
+            0: punctuation.parenthesis.close.ls1
+          pop: true
+        - include: comment
+        - include: parameter
+        - include: punctuation-comma
+        - include: variable-initializer
+  preprocessor:
+    - include: preprocessor-if
+    - include: preprocessor-ifdef
+    - include: preprocessor-include
+    - include: preprocessor-define
+    - include: preprocessor-macro
+  preprocessor-define:
+    - match: '^\s*(#define)\s+([^\s]+)\s+(.*)'
+      scope: meta.preprocessor.include.ls1
+      captures:
+        1: keyword.preprocessor.define.ls1
+        2: entity.name.function.preprocessor.ls1
+        3: entity.name.function.call.ls1
+  preprocessor-if:
+    - match: (?=^\s*#if\b)
+      push:
+        - match: (^\s*#endif)
+          captures:
+            0: keyword.preprocessor.endif.ls1
+          pop: true
+        - match: ^\s*(#if)\b\s+(.+)\s+
+          scope: meta.preprocessor.if.ls1
+          captures:
+            1: keyword.preprocessor.if.ls1
+            2: meta.preprocessor.if.expression.ls1
+        - include: statement
+        - include: preprocessor
+  preprocessor-ifdef:
+    - match: (?=^\s*#if(n)?def\b)
+      push:
+        - match: (^\s*#endif)
+          captures:
+            0: keyword.preprocessor.endif.ls1
+          pop: true
+        - match: ^\s*(#if(n)?def)\s+(.+)
+          scope: meta.preprocessor.ifdef.ls1
+          captures:
+            1: keyword.preprocessor.ifdef.ls1
+            2: meta.preprocessor.ifdef.expression.ls1
+        - include: statement
+        - include: preprocessor
+  preprocessor-include:
+    - match: ^\s*(#include|#includeoptional)\s+(.+)
+      scope: meta.preprocessor.include.ls1
+      captures:
+        1: keyword.preprocessor.include.ls1
+        2: meta.preprocessor.include.file.ls1
+  preprocessor-macro:
+    - match: (?=^#macro\b)
+      push:
+        - match: (^#endmac)
+          captures:
+            0: keyword.preprocessor.endmac.ls1
+          pop: true
+        - match: ^(#macro)\b\s+(.+)\s+
+          scope: meta.preprocessor.macro.ls1
+          captures:
+            1: keyword.preprocessor.macro.ls1
+            2: meta.preprocessor.macro.expression.ls1
+        - include: statement
+  preprocessor-shrinkwrap:
+    - match: (\$\$\>)
+      captures:
+        0: punctuation.definition.template-expression.begin.ls1
+      push:
+        - meta_scope: meta.shrinkwrap.ls1
+        - match: (\<\$\$)
+          captures:
+            0: punctuation.definition.template-expression.end.ls1
+          pop: true
+        - include: datasequence
+        - include: string
+  preprocessor-shrinkwrap2:
+    - match: '(\$\$\[)'
+      captures:
+        0: punctuation.definition.template-expression.begin.ls1
+      push:
+        - meta_scope: meta.shrinkwrap.ls1
+        - match: '(\]\$\$)'
+          captures:
+            0: punctuation.definition.template-expression.end.ls1
+          pop: true
+        - include: datasequence
+        - include: string
+  punctuation-comma:
+    - match: ","
+      scope: punctuation.separator.comma.ls1
+  punctuation-semicolon:
+    - match: ;
+      scope: punctuation.terminator.statement.ls1
+  return-statement:
+    - match: (?=^\s*\breturn\b)
+      push:
+        - match: $
+          pop: true
+        - match: ^\s*\b(return)\b(\s+(.+)\s+)?
+          scope: meta.return.ls1
+          captures:
+            1: keyword.control.return.ls1
+            2: meta.return.expression.ls1
+  statement:
+    - include: comment
+    - include: datasequence
+    - include: preprocessor
+    - include: block
+    - include: while-statement
+    - include: do-statement
+    - include: for-statement
+    - include: if-statement
+    - include: elseif-statement
+    - include: else-statement
+    - include: switch-statement
+    - include: case-statement
+    - include: return-statement
+    - include: break-or-continue-statement
+    - include: variable-declaration
+    - include: method-command
+    - include: command
+  string:
+    - match: (")
+      captures:
+        0: punctuation.definition.string.begin.cpp
+      push:
+        - meta_scope: string.quoted.double.ls1
+        - match: (")
+          captures:
+            1: punctuation.definition.string.end.cpp
+          pop: true
+        - include: line_continuation_character
+        - include: escape
+        - include: datasequence
+        - include: preprocessor-shrinkwrap
+        - include: preprocessor-shrinkwrap2
+  switch-statement:
+    - match: (?=^\s*\bswitch\b)
+      push:
+        - match: $
+          pop: true
+        - match: ^\s*\b(switch)\b\s+(.+)\s+
+          scope: meta.switch.ls1
+          captures:
+            1: keyword.control.switch.ls1
+            2: meta.switch.expression.ls1
+  type:
+    - include: type-builtin
+    - include: type-name
+  type-builtin:
+    - match: \b(bool|byte|char|decimal|double|float|int|int64|long|object|sbyte|short|string|uint|ulong|ushort|void|dynamic|filepath|settingsetref|lnavpath|dijkstrapathfinder|lnavregionref)\b
+      captures:
+        1: keyword.type.ls1
+  type-name:
+    - match: '(@?[_[:alpha:]][_[:alnum:]]*)\s*(\:\:)'
+      captures:
+        1: entity.name.type.alias.ls1
+        2: punctuation.separator.coloncolon.ls1
+    - match: '(@?[_[:alpha:]][_[:alnum:]]*)\s*(\.)'
+      captures:
+        1: entity.name.type.ls1
+        2: punctuation.accessor.ls1
+    - match: '(\.)\s*(@?[_[:alpha:]][_[:alnum:]]*)'
+      captures:
+        1: punctuation.accessor.ls1
+        2: entity.name.type.ls1
+    - match: "@?[_[:alpha:]][_[:alnum:]]*"
+      scope: entity.name.type.ls1
+  unquoted-text:
+    - match: \b\w+\b
+      scope: string.unquoted
+  variable-declaration:
+    - match: (?=^\s*\bvariable\b)
+      push:
+        - match: $
+          pop: true
+        - match: '^\s*\b(variable)\b(\(global\)|\(globalkeep\)|\(script\)|\(object\))?\s+\b(@?[_[:alpha:]][_[:alnum:]]*(\:(@?[_[:alpha:]][_[:alnum:]]*))?)\s+\b(@?[_[:alpha:]][_[:alnum:]]*)'
+          scope: meta.variable.ls1
+          captures:
+            1: keyword.other.variable.ls1
+            2: keyword.control.variablescope.ls1
+            6: entity.name.variable.ls1
+        - include: variable-initializer
+  variable-initializer:
+    - match: (=)
+      captures:
+        1: keyword.operator.assignment.ls1
+      push:
+        - meta_scope: meta.variable-initializer.ls1
+        - meta_content_scope: meta.variable-initializer.content.ls1
+        - match: '$|(?=[,\)])'
+          pop: true
+        - include: expression
+  while-statement:
+    - match: (?=^\s*\bwhile\b)
+      push:
+        - match: $
+          pop: true
+        - match: ^\s*\b(while)\b\s+(.+)\s+
+          scope: meta.while.ls1
+          captures:
+            1: keyword.control.while.ls1
+            2: meta.while.expression.ls1
